@@ -166,6 +166,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 					ListView_SetItemText(hListView, monitoredEntry.i, 3, "Connecting");
 				}
 				break;
+				case ID_DETECT_STOP:
+				{
+					if (RasHangUp(monitoredEntry.hRasConn) == ERROR_SUCCESS)
+						CleanUpDetection();
+				}
+				break;
 				case ID_DETECT_RELOAD:
 					if (!UpdateListView(hListView))
 						return 0;
