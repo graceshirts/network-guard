@@ -51,7 +51,7 @@ BOOL UpdateListView(HWND hListView) {
 
 void CleanUpDetection() {
 	KillTimer(hWnd, IDT_TIMER);
-	MessageBox(NULL, "The network is down!", "Error", MB_ICONEXCLAMATION | MB_OK);
+	MessageBox(NULL, "The network is down!", "Error", MB_TOPMOST | MB_ICONEXCLAMATION | MB_OK);
 	
 	UpdateListView(hListView);
 	monitoredEntry.i = -1;

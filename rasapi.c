@@ -15,6 +15,7 @@ BOOL InitListViewColumns(HWND hListView) {
 		lvc.iSubItem = iCol;
 		lvc.pszText = szText;
 		lvc.cx = 140;
+		lvc.fmt = LVCFMT_LEFT;
 		
 		LoadString(GetModuleHandle(NULL), IDS_COLUMN_ENTRYNAME + iCol,
 			szText,
