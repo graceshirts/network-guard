@@ -6,6 +6,9 @@
 #define IDI_DISCONNECTED 1003
 #define IDR_APPMENU 100
 
+// Timer
+#define IDT_TIMER 7001
+
 // Menu
 #define ID_FILE_NEW 101
 #define ID_FILE_OPEN 102
