@@ -2,6 +2,8 @@
 
 // Icon
 #define IDI_APPICON 1001
+#define IDI_CONNECTED 1002
+#define IDI_DISCONNECTED 1003
 #define IDR_APPMENU 100
 
 // Menu
@@ -22,3 +24,12 @@
 #define ID_DETECT_RELOAD 304
 
 #define ID_HELP_ABOUT 401
+
+// ListView
+#define IDC_LISTVIEW 2001
+// Columns
+#define C_COLUMNS 4
+#define IDS_COLUMN_ENTRYNAME 2101
+#define	IDS_COLUMN_DEVICETYPE 2102
+#define	IDS_COLUMN_DEVICENAME 2103
+#define IDS_COLUMN_STATUS 2104
