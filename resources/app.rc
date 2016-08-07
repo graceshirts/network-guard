@@ -1,0 +1,37 @@
+#include "../resource.h"
+
+IDI_APPICON ICON "icon_256.ico"
+
+IDR_APPMENU MENU
+{
+     POPUP "&File"
+	 {
+		 MENUITEM "New\tCtrl+N", ID_FILE_NEW
+		 MENUITEM "Open...\tCtrl+O", ID_FILE_OPEN
+		 MENUITEM SEPARATOR
+		 MENUITEM "Save\tCtrl+S", ID_FILE_SAVE
+		 MENUITEM "Save as...\tCtrl+Shift+S", ID_FILE_SAVEAS
+		 MENUITEM "Print\tCtrl+P", ID_FILE_PRINT
+		 MENUITEM SEPARATOR
+		 MENUITEM "Exit\tEsc", ID_FILE_EXIT
+	 }
+     POPUP "&Edit"
+	 {
+		 MENUITEM "Copy\tCtrl+C", ID_FILE_COPY
+		 MENUITEM SEPARATOR
+		 MENUITEM "Select all\tCtrl+A", ID_FILE_SELECTALL
+		 MENUITEM SEPARATOR
+		 MENUITEM "Search...\tCtrl+F", ID_FILE_SEARCH
+	 }
+     POPUP "&Dectect"
+     {
+          MENUITEM "Run\tF2", ID_DETECT_RUN
+		  MENUITEM "Stop\tF3", ID_DETECT_STOP
+		  MENUITEM "Preference", ID_DETECT_PREF
+		  MENUITEM "Reload all interfaces\tF5", ID_DETECT_RELOAD
+     }
+     POPUP "&Help"
+     {
+		  MENUITEM "&About\tF12", ID_HELP_ABOUT
+     }
+}
