@@ -1,241 +1,88 @@
-#include <windows.h>
-#include <CommCtrl.h>
-#include <Ras.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "resource.h"
-#include "rasapi.h"
 
-const char g_szClassName[] = "network-guard";
-HWND hWnd;
-HWND hListView;
+#define __DEBUG
 
-typedef struct tagEntry {
-	int i;
-	char szEntryName[RAS_MaxEntryName + 1];
-	HRASCONN hRasConn;
-} Entry, *LPEntry;
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 
-Entry monitoredEntry;
+#define MIN_ARGC 5
+#define MAX_ARGC 9
+#define MAX_ENTRY_NAME 256
+#define MAX_APP_NAME 256
+#define MAX_APP_PARAMS 256
+#define UPDATE_INTERVAL 500
 
-void SwitchRASMenu(BOOL RunEnabled) {
-	if (RunEnabled) {
-		EnableMenuItem(GetMenu(hWnd), ID_DETECT_STOP, MF_GRAYED);
-		EnableMenuItem(GetMenu(hWnd), ID_DETECT_RUN, MF_ENABLED);
-	}
-	else {
-		EnableMenuItem(GetMenu(hWnd), ID_DETECT_RUN, MF_GRAYED);
-		EnableMenuItem(GetMenu(hWnd), ID_DETECT_STOP, MF_ENABLED);
-	}
-}
+typedef struct tagPARAMS {
+	unsigned int argc;
+	char EntryName[MAX_ENTRY_NAME + 1];
+	char AppName[MAX_APP_NAME + 1];
+	char AppParams[MAX_APP_PARAMS + 1];
+	unsigned int UpdateInterval;
+} PARAMS, *LPPARAMS;
 
-int GetSelectedItem(HWND hListView) {
-	int iCount = ListView_GetItemCount(hListView);
-	int i;
+int UnpackParams(LPPARAMS lpParams, char paramName[], char paramValue[]) {
 	int iRet;
 	
-	for (i = 0; i < iCount; i++) {
-		iRet = ListView_GetItemState(hListView, i, LVIS_SELECTED);
-		if (iRet == LVIS_SELECTED)
-			return i;
+	if (strcmp(paramName, "-c") == 0) {
+		iRet = strncpy_s(lpParams->EntryName, MAX_ENTRY_NAME + 1, paramValue, MAX_ENTRY_NAME);
+		return iRet; // if success return 0;
 	}
-	return -1;
-}
-
-BOOL UpdateListView(HWND hListView) {
-	SendMessage(hListView, LVM_DELETEALLITEMS, 0, 0);
-	if (!EnumEntries(hListView))
-		return 0;
-	if (!EnumConnections(hListView))
-		return 0;
-}
-
-void CleanUpDetection() {
-	KillTimer(hWnd, IDT_TIMER);
-	MessageBox(NULL, "The network is down!", "Error", MB_TOPMOST | MB_ICONEXCLAMATION | MB_OK);
-	
-	UpdateListView(hListView);
-	monitoredEntry.i = -1;
-	monitoredEntry.szEntryName[0] = '\0';
-	monitoredEntry.hRasConn = NULL;
-	
-	SwitchRASMenu(TRUE);
-}
-
-#define DETECTION_INTERVAL 500
-
-void StartDetection() {
-	DWORD iRet;
-	iRet = GetConnectStatus(monitoredEntry.hRasConn);
-	
-	if (iRet != 1) {
-		CleanUpDetection();
-		return;
+	else if (strcmp(paramName, "-a") == 0) {
+		iRet = strncpy_s(lpParams->AppName, MAX_APP_NAME + 1, paramValue, MAX_APP_NAME);
+		return iRet;
 	}
+	else if (strcmp(paramName, "-p") == 0) {
+		iRet = strncpy_s(lpParams->AppParams, MAX_APP_PARAMS + 1, paramValue, MAX_APP_PARAMS);
+		return iRet;
+	}
+	else if (strcmp(paramName, "-t") == 0) {
+		lpParams->UpdateInterval = atoi(paramValue);
+		return 0;
+	}
+	
+	return 1;
 }
 
-void CALLBACK RasDialFunc1(HRASCONN hrasconn, UINT unMsg, RASCONNSTATE rascs, DWORD dwError, DWORD dwExtendedError)  {
-	if (unMsg != WM_RASDIALEVENT)
-		return;
+int main(int argc, char * argv[]) {
+	
+	if (argc < MIN_ARGC || argc > MAX_ARGC ) {
+		printf("Invalid numbers of parameters!\n");
+		return EXIT_FAILURE;
+	}
+	
+#ifdef __DEBUG
+	printf("argv=%s\n", argv[0]);
+#endif
+	
+	int i;
+	int iRet;
+	PARAMS params;
+	params.argc = argc;
+	params.UpdateInterval = UPDATE_INTERVAL;
+	
+	for (i = 1; i < argc; i+=2) {
+		iRet = UnpackParams(&params, argv[i], argv[i+1]);
+		if (iRet != 0) {
+			printf("Unpacking parameters failed!\n");
+			return EXIT_FAILURE;
+		}
+	}
+	
+#ifdef __DEBUG
+	printf("params.argc=%d\n", params.argc);
+	printf("params.EntryName=%s\n", params.EntryName);
+	printf("params.AppName=%s\n", params.AppName);
+	printf("params.UpdateInterval=%d\n", params.UpdateInterval);
+#endif
+
+	if (params.UpdateInterval == 0)
+		params.UpdateInterval = UPDATE_INTERVAL;
 		
-	if (dwError != 0) {
-		SwitchRASMenu(TRUE);
-		ListView_SetItemText(hListView, monitoredEntry.i, 3, "Disconnected");
-		return;
-	}
 	
-	if (rascs == RASCS_Connected) {
-		UpdateListView(hListView);
-		SetTimer(hWnd, IDT_TIMER, DETECTION_INTERVAL, StartDetection);
-	}
-}
-
-LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	
-	switch(msg) {
-		case WM_CREATE:
-		{
-			hListView = CreateWindowEx(
-				WS_EX_CLIENTEDGE,
-				WC_LISTVIEW,
-				"Network Guard",
-				WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL,
-				0, 0, 560, 350, // x, y, width, height
-				hWnd, (HMENU)IDC_LISTVIEW, GetModuleHandle(NULL), NULL);
-				
-			if (!hListView) {
-				MessageBox(NULL, "ListView creation failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
-				return 0;
-			}
-			
-			if (!InitListViewColumns(hListView))
-				return 0;
-			if (!EnumEntries(hListView))
-				return 0;
-			if (!EnumConnections(hListView))
-				return 0;
-		}
-		break;
-		case WM_COMMAND:
-		{
-			switch LOWORD(wParam) {
-				case ID_FILE_EXIT:
-					PostQuitMessage(0);
-				break;
-				case ID_DETECT_RUN:
-				{
-					int i = GetSelectedItem(hListView);
-					
-					UpdateListView(hListView);
-					
-					if (i == -1) {
-						MessageBox(NULL, "Please select a connection!", "Error", MB_ICONEXCLAMATION | MB_OK);
-						return 0;
-					}
-					
-					char szText[16];
-					
-					ListView_GetItemText(hListView, i, 3, szText, sizeof(szText)/sizeof(szText[0]));
-					
-					if (strcmp(szText, "Disconnected") != 0) {
-						MessageBox(NULL, "Only disconnected connection can be selected!", "Error", MB_ICONEXCLAMATION | MB_OK);
-						return 0;
-					}
-					
-					monitoredEntry.i = i;
-					ListView_GetItemText(hListView, i, 0, monitoredEntry.szEntryName, RAS_MaxEntryName + 1);
-					monitoredEntry.hRasConn = NULL;
-					
-					BOOL Password;
-					DWORD iRet;
-					RASDIALPARAMS rasDialParams;
-					
-					rasDialParams.dwSize = sizeof(RASDIALPARAMS);
-					strncpy_s(rasDialParams.szEntryName, RAS_MaxEntryName + 1, monitoredEntry.szEntryName, RAS_MaxEntryName);
-					
-					iRet = RasGetEntryDialParams(NULL, &rasDialParams, &Password);
-					
-					if (iRet != ERROR_SUCCESS)
-						return 0;
-						
-					iRet = RasDial(NULL, NULL, &rasDialParams, 1, RasDialFunc1, &monitoredEntry.hRasConn);
-	
-					if (iRet != ERROR_SUCCESS)
-						return 0;
-						
-					SwitchRASMenu(FALSE);
-					ListView_SetItemText(hListView, monitoredEntry.i, 3, "Connecting");
-				}
-				break;
-				case ID_DETECT_STOP:
-				{
-					if (RasHangUp(monitoredEntry.hRasConn) == ERROR_SUCCESS)
-						CleanUpDetection();
-				}
-				break;
-				case ID_DETECT_RELOAD:
-					if (!UpdateListView(hListView))
-						return 0;
-				break;
-			}
-		}
-		break;
-		case WM_CLOSE:
-			DestroyWindow(hWnd);
-		break;
-		case WM_DESTROY:
-			PostQuitMessage(0);
-		break;
-		default:
-			return DefWindowProc(hWnd, msg, wParam, lParam);
-	}
 	return 0;
-}
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	WNDCLASSEX wc;
-	MSG msg;
-	
-	// Registering the window class
-	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.style = 0;
-	wc.lpfnWndProc = WndProc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = hInstance;
-	wc.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_APPICON));
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)1;
-	wc.lpszMenuName = MAKEINTRESOURCE(IDR_APPMENU);
-	wc.lpszClassName = g_szClassName;
-	wc.hIconSm = 0;
-	
-	if (!RegisterClassEx(&wc)) {
-		MessageBox(NULL, "Window registeration failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
-		return 0;
-	}
-	
-	hWnd = CreateWindowEx(
-		WS_EX_APPWINDOW,
-		g_szClassName,
-		"Network Guard",
-		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
-		400, 200, 560, 350, // x, y, width, height
-		NULL, NULL, hInstance, NULL);
-		
-	if (!hWnd) {
-		MessageBox(NULL, "Window creation failed!", "Error", MB_ICONEXCLAMATION | MB_OK);
-		return 0;
-	}
-		
-	ShowWindow(hWnd, nCmdShow);
-	UpdateWindow(hWnd);
-	
-	SwitchRASMenu(TRUE);
-	
-	while (GetMessage(&msg, NULL, 0, 0) > 0) {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-	
-	return msg.wParam;
 }
