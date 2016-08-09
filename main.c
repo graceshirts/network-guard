@@ -141,21 +141,41 @@ int main(int argc, char * argv[]) {
 	memset(&si, 0, sizeof(si));
 	memset(&si, 0, sizeof(pi));
 
-	iRet = CreateProcess(params.AppName, params.AppParams, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+	iRet = CreateProcess(params.AppName, params.AppParams, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
 	
 	if (iRet == FALSE) {
 		printf("Cannot create process!\n");
 		return EXIT_FAILURE;
 	}
 	
+#ifdef __DEBUG
+	printf("pi.PID=%d\n", pi.dwProcessId);
+	printf("pi.TID=%d\n", pi.dwThreadId);
+#endif
+	
 	while (RasHlpConnected(hRasConn)) {
-		Sleep(0);
+		Sleep(params.UpdateInterval);
 	}
 	
-	TerminateProcess(pi.hProcess, 1);
-	CloseHandle(pi.hProcess);
+	if (!TerminateProcess(pi.hProcess, 1)) {
+		printf("Process termination failed!\nError code:%d\n", GetLastError());
+		return EXIT_FAILURE;
+	}
 	
-	Sleep(3000);
+	if (!TerminateThread(pi.hThread, 1)) {
+		printf("Thread termination failed!\nError code:%d\n", GetLastError());
+		return EXIT_FAILURE;
+	}
+	
+	if (!CloseHandle(pi.hProcess)) {
+		printf("Cannot close process handle!\n");
+		return EXIT_FAILURE;
+	}
+	
+	if (!CloseHandle(pi.hThread)) {
+		printf("Cannot close thread handlhe!\n");
+		return EXIT_FAILURE;
+	}
 	
 	return 0;
 }
